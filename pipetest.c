@@ -41,8 +41,9 @@ void reader(int);
 void writer(int);
 void rwio(int, int, size_t, char, char);
 void genchar(char *, size_t, char, char, char);
+void xchange(int[]);
 
-void __dead 
+void __dead
 usage(void)
 {
 	fprintf(stderr, "%s: [-s seed] socketpair | pipe | fifo | unix\n",
@@ -55,7 +56,7 @@ main(int argc, char *argv[])
 {
 	int ch, fd[2], ls, mfd[2], ret = 0;
 	unsigned int seed;
-	pid_t pid[2];
+	pid_t pid[3];
 	const char *errstr, *mode;
 	char *dev, ptyname[2][16];
 	struct sockaddr_un sun;
@@ -158,6 +159,16 @@ main(int argc, char *argv[])
 	}
 	close(fd[0]);
 	close(fd[1]);
+
+	if (strcmp(mode, "pty") == 0) {
+		if ((pid[2] = fork()) == -1)
+			err(1, "fork");
+		if (pid[2] == 0) {
+			xchange(mfd);
+			fflush(stdout);
+			_exit(0);
+		}
+	}
 
 	while (pid[0] != 0 || pid[1] != 0) {
 		int status;
@@ -278,5 +289,95 @@ genchar(char *buf, size_t n, char c, char begin, char end)
 		if (c > end)
 			c = begin;
 		*p = c++;
+	}
+}
+
+void
+xchange(int fd[])
+{
+	struct pollfd fds[2];
+	size_t n[2] = {0, 0}, readlen[2] = { 0, 0 }, writelen[2] = { 0, 0 };
+	char buf[2][BUFSIZE];
+
+	fds[0].fd = fd[0];
+	fds[0].events = POLLIN;
+	fds[1].fd = fd[1];
+	fds[1].events = POLLIN;
+
+	while (1) {
+		ssize_t rv;
+
+		if (poll(fds, 2, INFTIM) == -1)
+			err(1, "poll");
+
+		if (fds[0].revents & POLLNVAL)
+			errx(1, "POLLNVAL %d", fds[0].fd);
+		if (fds[1].revents & POLLNVAL)
+			errx(1, "POLLNVAL %d", fds[1].fd);
+		if (fds[0].revents & POLLERR)
+			errx(1, "POLLERR %d", fds[0].fd);
+		if (fds[1].revents & POLLERR)
+			errx(1, "POLLERR %d", fds[1].fd);
+
+		if (fds[0].revents & POLLHUP) {
+			fds[0].fd = -1;
+			if (fds[1].fd == -1)
+				break;
+		}
+		if (fds[1].revents & POLLHUP) {
+			fds[1].fd = -1;
+			if (fds[0].fd == -1)
+				break;
+		}
+
+		if (fds[0].revents & POLLIN) {
+			if ((rv = read(fds[0].fd, buf[0], BUFSIZE)) == -1)
+				err(1, "read");
+			if (rv > 0) {
+				readlen[0] += rv;
+				n[0] = rv;
+				fds[0].events &= ~POLLIN;
+				fds[1].events |= POLLOUT;
+			}
+		}
+		if (fds[1].revents & POLLOUT) {
+			if ((rv = write(fds[1].fd, buf[0], n[0])) == -1)
+				err(1, "write");
+			if (rv > 0) {
+				writelen[1] += rv;
+				n[0] -= rv;
+				if (n[0] > 0) {
+					memmove(buf[0], buf[0] + rv, n[0]);
+				} else {
+					fds[0].events |= POLLIN;
+					fds[1].events &= ~POLLOUT;
+				}
+			}
+		}
+
+		if (fds[1].revents & POLLIN) {
+			if ((rv = read(fds[1].fd, buf[1], BUFSIZE)) == -1)
+				err(1, "read");
+			if (rv > 0) {
+				readlen[1] += rv;
+				n[1] = rv;
+				fds[1].events &= ~POLLIN;
+				fds[0].events |= POLLOUT;
+			}
+		}
+		if (fds[0].revents & POLLOUT) {
+			if ((rv = write(fds[0].fd, buf[1], n[1])) == -1)
+				err(1, "write");
+			if (rv > 0) {
+				writelen[0] += rv;
+				n[1] -= rv;
+				if (n[1] > 0) {
+					memmove(buf[1], buf[1] + rv, n[1]);
+				} else {
+					fds[1].events |= POLLIN;
+					fds[0].events &= ~POLLOUT;
+				}
+			}
+		}
 	}
 }
