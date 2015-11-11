@@ -106,13 +106,14 @@ rwio(int fd, int events, size_t writemax, char writebegin, char writeend)
 		if (fds[0].revents & POLLERR)
 			errx(1, "POLLERR %d", fds[0].fd);
 		if (fds[0].revents & POLLHUP) {
-			fds[0].events &= POLLIN;
+			fds[0].events &= ~POLLIN;
 			eof = 1;
 		}
 		if (fds[0].revents & POLLIN) {
 			if ((rv = read(fds[0].fd, buf, READSIZE)) == -1)
 				err(1, "read");
 			if (rv > 0 && buf[rv - 1] == '\0') {
+				printf("%d READEOF\n", fds[0].fd);
 				eof = 1;
 				rv--;
 			}
@@ -131,7 +132,8 @@ rwio(int fd, int events, size_t writemax, char writebegin, char writeend)
 			if (writemax && writelen == writemax) {
 				if (write(fds[0].fd, "", 1) == -1)
 					err(1, "write eof");
-				fds[0].events &= POLLOUT;
+				printf("%d WRITEEOF\n", fds[0].fd);
+				fds[0].events &= ~POLLOUT;
 			}
 			if (n > 0) {
 				genchar(buf, n, out, writebegin, writeend);
