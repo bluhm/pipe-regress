@@ -47,7 +47,7 @@ void xchange(int[]);
 void __dead
 usage(void)
 {
-	fprintf(stderr, "%s: [-s seed] socketpair | pipe | fifo | unix\n",
+	fprintf(stderr, "%s: [-s seed] socketpair | pipe | fifo | unix | pty\n",
 	    getprogname());
 	exit(2);
 }
@@ -122,10 +122,14 @@ main(int argc, char *argv[])
 			err(1, "accept");
 	}
 	if (strcmp(mode, "pty") == 0) {
-		if (openpty(&mfd[0], &fd[0], ptyname[0], NULL, NULL) == -1)
+		struct termios term;
+
+		memset(&term, 0, sizeof(term));
+		cfmakeraw(&term);
+		if (openpty(&mfd[0], &fd[0], ptyname[0], &term, NULL) == -1)
 			err(1, "openpty");
 		printf("%d PTY: %s\n", fd[0], ptyname[0]);
-		if (openpty(&mfd[1], &fd[1], ptyname[1], NULL, NULL) == -1)
+		if (openpty(&mfd[1], &fd[1], ptyname[1], &term, NULL) == -1)
 			err(1, "openpty");
 		printf("%d PTY: %s\n", fd[1], ptyname[1]);
 
