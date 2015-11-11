@@ -1,0 +1,143 @@
+#include <sys/socket.h>
+#include <sys/wait.h>
+
+#include <err.h>
+#include <poll.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#define READSIZE	256
+#define WRITESIZE	64
+#define BUFSIZE		(READSIZE > WRITESIZE ? READSIZE : WRITESIZE)
+
+void reader(int);
+void writer(int);
+void rwio(int, int, size_t);
+void genchar(char *, size_t, char, char, char);
+
+int
+main(int argc, char *argv[])
+{
+	int fd[2], ret = 0;
+	pid_t pid[2];
+
+	if (socketpair(AF_LOCAL, SOCK_STREAM, 0, fd) == -1)
+		err(1, "socketpair");
+
+	srandom_deterministic(5);
+
+	if ((pid[0] = fork()) == -1)
+		err(1, "fork");
+	if (pid[0] == 0) {
+		close(fd[1]);
+		reader(fd[0]);
+		_exit(0);
+	}
+
+	if ((pid[1] = fork()) == -1)
+		err(1, "fork");
+	if (pid[1] == 0) {
+		close(fd[0]);
+		writer(fd[1]);
+		_exit(0);
+	}
+	close(fd[0]);
+	close(fd[1]);
+
+	while (pid[0] != 0 || pid[1] != 0) {
+		int status;
+		pid_t wpid;
+
+		if ((wpid = wait(&status)) == -1)
+			err(1, "wait");
+		if (WIFEXITED(status) && WEXITSTATUS(status) != 0 && ret == 0)
+			ret = WEXITSTATUS(status);
+		if (WIFSIGNALED(status) && WTERMSIG(status) != 0 && ret == 0)
+			ret = WTERMSIG(status);
+		if (WIFEXITED(status) || WIFSIGNALED(status)) {
+			if (wpid == pid[0])
+				pid[0] = 0;
+			if (wpid == pid[1])
+				pid[1] = 0;
+		}
+	}
+
+	return (ret);
+}
+
+void
+reader(int fd)
+{
+	rwio(fd, POLLIN, 0);
+}
+
+void
+writer(int fd)
+{
+	rwio(fd, POLLOUT, 1000);
+}
+
+void
+rwio(int fd, int event, size_t maxlen)
+{
+	struct pollfd fds[1];
+	size_t n = 0, readlen = 0, writelen = 0;
+	char out = '0';
+
+	fds[0].fd = fd;
+	fds[0].events = event;
+
+	while (!maxlen || (readlen < maxlen && writelen < maxlen)) {
+		char buf[BUFSIZE + 1];
+		ssize_t rv;
+
+		if (poll(fds, 1, INFTIM) == -1)
+			err(1, "poll");
+		if (fds[0].revents & POLLNVAL)
+			errx(1, "POLLNVAL %d", fds[0].fd);
+		if (fds[0].revents & POLLERR)
+			errx(1, "POLLERR %d", fds[0].fd);
+		if (fds[0].revents & POLLHUP)
+			break;
+		if (fds[0].revents & POLLIN) {
+			if ((rv = read(fds[0].fd, buf, READSIZE)) == -1)
+				err(1, "read");
+			if (rv > 0) {
+				buf[rv] = '\0';
+				printf("%d >>> %s\n", fds[0].fd, buf);
+				readlen += rv;
+			}
+		}
+		if (fds[0].revents & POLLOUT) {
+			if (n == 0)
+				n = random() % WRITESIZE;
+			if (maxlen && n + writelen > maxlen)
+				n = maxlen - writelen;
+			genchar(buf, n, out, '0', '9');
+			if ((rv = write(fds[0].fd, buf, n)) == -1)
+				err(1, "read");
+			if (rv > 0) {
+				buf[rv] = '\0';
+				printf("%d <<< %s\n", fds[0].fd, buf);
+				out = ((out+rv-'0') % (1+'9'-'0')) + '0';
+				writelen += rv;
+				n -= rv;
+			}
+		}
+	}
+	printf("%d READLEN: %zu\n", fd, readlen);
+	printf("%d WRITELEN: %zu\n", fd, writelen);
+}
+
+void
+genchar(char *buf, size_t n, char c, char begin, char end)
+{
+	char *p;
+
+	for (p = buf; p < buf + n; p++) {
+		*p = c;
+		if (c++ >= end)
+			c = begin;
+	}
+}
