@@ -1,6 +1,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/un.h>
 #include <sys/wait.h>
 
 #include <err.h>
@@ -25,15 +26,16 @@ void genchar(char *, size_t, char, char, char);
 int
 main(int argc, char *argv[])
 {
-	int fd[2], ret = 0;
+	int fd[2], ls, ret = 0;
 	pid_t pid[2];
 	char *dev;
+	struct sockaddr_un sun;
 
 	if (argc != 2)
 		usage();
 
 	if (strcmp(argv[1], "socketpair") == 0) {
-		if (socketpair(AF_LOCAL, SOCK_STREAM, 0, fd) == -1)
+		if (socketpair(PF_LOCAL, SOCK_STREAM, 0, fd) == -1)
 			err(1, "socketpair");
 	}
 	if (strcmp(argv[1], "pipe") == 0) {
@@ -46,6 +48,29 @@ main(int argc, char *argv[])
 		unlink(dev);
 		if (mkfifo(dev, 0600) == -1)
 			err(1, "mkfifo");
+	}
+	if (strcmp(argv[1], "unix") == 0) {
+		if (asprintf(&dev, "%s.sock", getprogname()) == -1)
+			err(1, "asprintf");
+		unlink(dev);
+		if ((ls = socket(PF_LOCAL, SOCK_STREAM, 0)) == -1)
+			err(1, "socket");
+		memset(&sun, 0, sizeof(sun));
+		sun.sun_len = sizeof(sun);
+		sun.sun_family = AF_LOCAL;
+		if (strlcpy(sun.sun_path, dev, sizeof(sun.sun_path)) >=
+		    sizeof(sun.sun_path))
+			errx(1, "strlcpy: %s", dev);
+		if (bind(ls, (struct sockaddr *)&sun, sizeof(sun)) == -1)
+			err(1, "bind");
+		if (listen(ls, 1) == -1)
+			err(1, "listen");
+		if ((fd[1] = socket(PF_LOCAL, SOCK_STREAM, 0)) == -1)
+			err(1, "socket");
+		if (connect(fd[1], (struct sockaddr *)&sun, sizeof(sun)) == -1)
+			err(1, "connect");
+		if ((fd[0] = accept(ls, NULL, 0)) == -1)
+			err(1, "accept");
 	}
 
 	srandom(5);
@@ -106,7 +131,8 @@ main(int argc, char *argv[])
 void __dead 
 usage(void)
 {
-	fprintf(stderr, "%s: socketpair | pipe | fifo\n", getprogname());
+	fprintf(stderr, "%s: socketpair | pipe | fifo | unix\n",
+	    getprogname());
 	exit(2);
 }
 
