@@ -58,7 +58,7 @@ main(int argc, char *argv[])
 {
 	int ch, fd[2], ls, mfd[2], ret = 0;
 	unsigned int seed;
-	pid_t pid[3];
+	pid_t pid[3] = {0, 0, 0};
 	const char *errstr, *mode;
 	char *dev, ptyname[2][16];
 	struct sockaddr_un sun;
@@ -320,7 +320,7 @@ void
 xchange(int fd[])
 {
 	struct pollfd fds[2];
-	size_t n[2] = {0, 0}, readlen[2] = { 0, 0 }, writelen[2] = { 0, 0 };
+	size_t n[2] = {0, 0}, readlen[2] = {0, 0}, writelen[2] = {0, 0};
 	char buf[2][BUFSIZE];
 
 	fds[0].fd = fd[0];
