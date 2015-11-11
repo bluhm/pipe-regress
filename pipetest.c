@@ -6,6 +6,7 @@
 
 #include <err.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <md5.h>
 #include <poll.h>
 #include <stdio.h>
@@ -23,33 +24,58 @@ void writer(int);
 void rwio(int, int, size_t, char, char);
 void genchar(char *, size_t, char, char, char);
 
+void __dead 
+usage(void)
+{
+	fprintf(stderr, "%s: [-s seed] socketpair | pipe | fifo | unix\n",
+	    getprogname());
+	exit(2);
+}
+
 int
 main(int argc, char *argv[])
 {
-	int fd[2], ls, ret = 0;
+	int ch, fd[2], ls, ret = 0;
+	unsigned int seed;
 	pid_t pid[2];
+	const char *errstr, *mode;
 	char *dev;
 	struct sockaddr_un sun;
 
-	if (argc != 2)
+	seed = arc4random();
+	while ((ch = getopt(argc, argv, "s:")) != -1) {
+		switch (ch) {
+		case 's':
+			seed = strtonum(optarg, 0, UINT_MAX, &errstr);
+			if (errstr)
+				errx(1, "seed is %s: %s", errstr, optarg);
+			break;
+		default:
+			usage();
+		}
+	}
+	argc -= optind;
+	argv += optind;
+	if (argc != 1)
 		usage();
+	mode = argv[0];
 
-	if (strcmp(argv[1], "socketpair") == 0) {
+	if (strcmp(mode, "socketpair") == 0) {
 		if (socketpair(PF_LOCAL, SOCK_STREAM, 0, fd) == -1)
 			err(1, "socketpair");
 	}
-	if (strcmp(argv[1], "pipe") == 0) {
+	if (strcmp(mode, "pipe") == 0) {
 		if (pipe(fd) == -1)
 			err(1, "pipe");
 	}
-	if (strcmp(argv[1], "fifo") == 0) {
+	if (strcmp(mode, "fifo") == 0) {
 		if (asprintf(&dev, "%s.fifo", getprogname()) == -1)
 			err(1, "asprintf");
 		unlink(dev);
 		if (mkfifo(dev, 0600) == -1)
 			err(1, "mkfifo");
 	}
-	if (strcmp(argv[1], "unix") == 0) {
+	if (strcmp(mode, "unix") == 0) {
 		if (asprintf(&dev, "%s.sock", getprogname()) == -1)
 			err(1, "asprintf");
 		unlink(dev);
@@ -73,20 +99,20 @@ main(int argc, char *argv[])
 			err(1, "accept");
 	}
 
-	srandom(5);
-
-	if (setvbuf(stdout, NULL, _IOLBF, 0) != 0)
-		err(1, "setvbuf");
 	if (fflush(stdout) != 0)
 		err(1, "fflush");
+	if (setvbuf(stdout, NULL, _IOLBF, 0) != 0)
+		err(1, "setvbuf");
 	if ((pid[0] = fork()) == -1)
 		err(1, "fork");
 	if (pid[0] == 0) {
-		if (strcmp(argv[1], "fifo") == 0) {
+		if (strcmp(mode, "fifo") == 0) {
 			if ((fd[0] = open(dev, O_RDWR)) == -1)
 				err(1, "open");
 		} else
 			close(fd[1]);
+		printf("%d SEED: %u\n", fd[0], seed);
+		srandom_deterministic(seed);
 		reader(fd[0]);
 		fflush(stdout);
 		_exit(0);
@@ -95,11 +121,13 @@ main(int argc, char *argv[])
 	if ((pid[1] = fork()) == -1)
 		err(1, "fork");
 	if (pid[1] == 0) {
-		if (strcmp(argv[1], "fifo") == 0) {
+		if (strcmp(mode, "fifo") == 0) {
 			if ((fd[1] = open(dev, O_RDWR)) == -1)
 				err(1, "open");
 		} else
 			close(fd[0]);
+		printf("%d SEED: %u\n", fd[1], seed);
+		srandom_deterministic(seed);
 		writer(fd[1]);
 		fflush(stdout);
 		_exit(0);
@@ -126,14 +154,6 @@ main(int argc, char *argv[])
 	}
 
 	return (ret);
-}
-
-void __dead 
-usage(void)
-{
-	fprintf(stderr, "%s: socketpair | pipe | fifo | unix\n",
-	    getprogname());
-	exit(2);
 }
 
 void
