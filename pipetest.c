@@ -233,7 +233,6 @@ rwio(int fd, int events, size_t writemax, char writebegin, char writeend)
 	struct pollfd fds[1];
 	size_t n = 0, readlen = 0, writelen = 0;
 	char out = writebegin, md5str[MD5_DIGEST_STRING_LENGTH];
-	int eof = 0;
 	MD5_CTX readctx, writectx;
 
 	MD5Init(&readctx);
@@ -242,7 +241,7 @@ rwio(int fd, int events, size_t writemax, char writebegin, char writeend)
 	fds[0].fd = fd;
 	fds[0].events = events;
 
-	while ((!writemax && !eof) || (writelen < writemax || !eof)) {
+	while (fds[0].events & (POLLIN|POLLOUT)) {
 		char buf[BUFSIZE + 1];
 		ssize_t rv;
 
@@ -254,14 +253,13 @@ rwio(int fd, int events, size_t writemax, char writebegin, char writeend)
 			errx(1, "POLLERR %d", fds[0].fd);
 		if (fds[0].revents & POLLHUP) {
 			fds[0].events &= ~POLLIN;
-			eof = 1;
 		}
 		if (fds[0].revents & POLLIN) {
 			if ((rv = read(fds[0].fd, buf, READSIZE)) == -1)
 				err(1, "read");
 			if (rv > 0 && buf[rv - 1] == '\0') {
 				printf("%d READEOF\n", fds[0].fd);
-				eof = 1;
+				fds[0].events &= ~POLLIN;
 				rv--;
 			}
 			if (rv > 0) {
