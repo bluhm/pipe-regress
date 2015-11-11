@@ -58,7 +58,7 @@ main(int argc, char *argv[])
 {
 	int ch, fd[2], ls, mfd[2], ret = 0;
 	pid_t pid[3] = {0, 0, 0};
-	const char *errstr, *mode;
+	const char *mode;
 	char *dev, ptyname[2][16];
 	struct sockaddr_un sun;
 
@@ -122,7 +122,6 @@ main(int argc, char *argv[])
 		cfmakeraw(&term);
 		if (openpty(&mfd[0], &fd[0], ptyname[0], &term, NULL) == -1)
 			err(1, "openpty");
-		printf("%d PTY: %s\n", fd[0], ptyname[0]);
 		ch = 1;
 		if (ioctl(mfd[0], TIOCEXT, &ch) == -1)
 			err(1, "ioctl TIOCEXT");
@@ -130,7 +129,6 @@ main(int argc, char *argv[])
 			err(1, "ioctl TIOCREMOTE");
 		if (openpty(&mfd[1], &fd[1], ptyname[1], &term, NULL) == -1)
 			err(1, "openpty");
-		printf("%d PTY: %s\n", fd[1], ptyname[1]);
 		if (ioctl(mfd[1], TIOCEXT, &ch) == -1)
 			err(1, "ioctl TIOCEXT");
 		if (ioctl(mfd[1], TIOCREMOTE, &ch) == -1)
