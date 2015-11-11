@@ -48,7 +48,7 @@ void xchange(int[]);
 void __dead
 usage(void)
 {
-	fprintf(stderr, "%s: [-s seed] socketpair | pipe | fifo | unix | pty\n",
+	fprintf(stderr, "%s: socketpair | pipe | fifo | unix | pty\n",
 	    getprogname());
 	exit(2);
 }
@@ -57,7 +57,6 @@ int
 main(int argc, char *argv[])
 {
 	int ch, fd[2], ls, mfd[2], ret = 0;
-	unsigned int seed;
 	pid_t pid[3] = {0, 0, 0};
 	const char *errstr, *mode;
 	char *dev, ptyname[2][16];
@@ -66,14 +65,8 @@ main(int argc, char *argv[])
 	if (setvbuf(stdout, NULL, _IOLBF, 0) != 0)
 		err(1, "setvbuf");
 
-	seed = arc4random();
-	while ((ch = getopt(argc, argv, "s:")) != -1) {
+	while ((ch = getopt(argc, argv, "")) != -1) {
 		switch (ch) {
-		case 's':
-			seed = strtonum(optarg, 0, UINT_MAX, &errstr);
-			if (errstr)
-				errx(1, "seed is %s: %s", errstr, optarg);
-			break;
 		default:
 			usage();
 		}
@@ -168,8 +161,6 @@ main(int argc, char *argv[])
 				err(1, "open");
 		} else
 			close(fd[1]);
-		printf("%d SEED: %u\n", fd[0], seed);
-		srandom_deterministic(seed);
 		reader(fd[0]);
 		fflush(stdout);
 		_exit(0);
@@ -183,8 +174,6 @@ main(int argc, char *argv[])
 				err(1, "open");
 		} else
 			close(fd[0]);
-		printf("%d SEED: %u\n", fd[1], seed);
-		srandom_deterministic(seed);
 		writer(fd[1]);
 		fflush(stdout);
 		_exit(0);
@@ -271,7 +260,7 @@ rwio(int fd, int events, size_t writemax, char writebegin, char writeend)
 		}
 		if (fds[0].revents & POLLOUT) {
 			if (n == 0)
-				n = random() % WRITESIZE;
+				n = arc4random() % WRITESIZE;
 			if (writemax && n + writelen > writemax)
 				n = writemax - writelen;
 			if (writemax && writelen == writemax) {
