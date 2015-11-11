@@ -1,18 +1,22 @@
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
 #include <err.h>
+#include <fcntl.h>
 #include <md5.h>
 #include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #define READSIZE	256
 #define WRITESIZE	64
 #define BUFSIZE		(READSIZE > WRITESIZE ? READSIZE : WRITESIZE)
 
+void __dead usage(void);
 void reader(int);
 void writer(int);
 void rwio(int, int, size_t, char, char);
@@ -23,11 +27,28 @@ main(int argc, char *argv[])
 {
 	int fd[2], ret = 0;
 	pid_t pid[2];
+	char *dev;
 
-	if (socketpair(AF_LOCAL, SOCK_STREAM, 0, fd) == -1)
-		err(1, "socketpair");
+	if (argc != 2)
+		usage();
 
-	srandom_deterministic(5);
+	if (strcmp(argv[1], "socketpair") == 0) {
+		if (socketpair(AF_LOCAL, SOCK_STREAM, 0, fd) == -1)
+			err(1, "socketpair");
+	}
+	if (strcmp(argv[1], "pipe") == 0) {
+		if (pipe(fd) == -1)
+			err(1, "pipe");
+	}
+	if (strcmp(argv[1], "fifo") == 0) {
+		if (asprintf(&dev, "%s.fifo", getprogname()) == -1)
+			err(1, "asprintf");
+		unlink(dev);
+		if (mkfifo(dev, 0600) == -1)
+			err(1, "mkfifo");
+	}
+
+	srandom(5);
 
 	if (setvbuf(stdout, NULL, _IOLBF, 0) != 0)
 		err(1, "setvbuf");
@@ -36,7 +57,11 @@ main(int argc, char *argv[])
 	if ((pid[0] = fork()) == -1)
 		err(1, "fork");
 	if (pid[0] == 0) {
-		close(fd[1]);
+		if (strcmp(argv[1], "fifo") == 0) {
+			if ((fd[0] = open(dev, O_RDWR)) == -1)
+				err(1, "open");
+		} else
+			close(fd[1]);
 		reader(fd[0]);
 		fflush(stdout);
 		_exit(0);
@@ -45,7 +70,11 @@ main(int argc, char *argv[])
 	if ((pid[1] = fork()) == -1)
 		err(1, "fork");
 	if (pid[1] == 0) {
-		close(fd[0]);
+		if (strcmp(argv[1], "fifo") == 0) {
+			if ((fd[1] = open(dev, O_RDWR)) == -1)
+				err(1, "open");
+		} else
+			close(fd[0]);
 		writer(fd[1]);
 		fflush(stdout);
 		_exit(0);
@@ -72,6 +101,13 @@ main(int argc, char *argv[])
 	}
 
 	return (ret);
+}
+
+void __dead 
+usage(void)
+{
+	fprintf(stderr, "%s: socketpair | pipe | fifo\n", getprogname());
+	exit(2);
 }
 
 void
