@@ -1,11 +1,13 @@
-PROG=		pipetest
-WARNINGS=	yes
-CLEANFILES+=	*.fifo *.sock
+PROG =			pipetest
+WARNINGS =		yes
+CLEANFILES +=		*.fifo *.sock
 
-regress:
-	./pipetest socketpair
-	./pipetest pipe
-	#./pipetest fifo  broken, fifo is not bidirectional
-	./pipetest unix
+# XXX fifo is broken as it is not bidirectional
+.for t in socketpair pipe unix
+REGRESS_TARGETS +=	run-regress-$t
+run-regress-$t: ${PROG}
+	@echo '\n======== $@ ========'
+	./pipetest $t
+.endfor
 
 .include <bsd.regress.mk>
