@@ -1,10 +1,12 @@
 PROG =			pipetest
+LDADD =			-lutil
+DPADD =			${LIBUTIL}
 WARNINGS =		yes
 CLEANFILES +=		*.fifo *.sock *.log
 
 # XXX fifo is broken as it is not bidirectional
 
-.for t in socketpair pipe unix
+.for t in socketpair pipe unix pty
 REGRESS_TARGETS +=	run-regress-$t
 run-regress-$t: ${PROG}
 	@echo '\n======== $@ ========'

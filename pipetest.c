@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2015 Alexander Bluhm <bluhm@openbsd.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -12,7 +28,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
+#include <util.h>
 
 #define READSIZE	256
 #define WRITESIZE	64
@@ -35,11 +53,11 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	int ch, fd[2], ls, ret = 0;
+	int ch, fd[2], ls, mfd[2], ret = 0;
 	unsigned int seed;
 	pid_t pid[2];
 	const char *errstr, *mode;
-	char *dev;
+	char *dev, ptyname[2][16];
 	struct sockaddr_un sun;
 
 	seed = arc4random();
@@ -97,6 +115,12 @@ main(int argc, char *argv[])
 			err(1, "connect");
 		if ((fd[0] = accept(ls, NULL, 0)) == -1)
 			err(1, "accept");
+	}
+	if (strcmp(mode, "pty") == 0) {
+		if (openpty(&mfd[0], &fd[0], ptyname[0], NULL, NULL) == -1)
+			err(1, "openpty");
+		if (openpty(&mfd[1], &fd[1], ptyname[1], NULL, NULL) == -1)
+			err(1, "openpty");
 	}
 
 	if (fflush(stdout) != 0)
