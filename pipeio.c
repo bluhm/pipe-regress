@@ -1,7 +1,9 @@
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 
 #include <err.h>
+#include <md5.h>
 #include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -83,7 +85,11 @@ rwio(int fd, int event, size_t maxlen)
 {
 	struct pollfd fds[1];
 	size_t n = 0, readlen = 0, writelen = 0;
-	char out = '0';
+	char out = '0', md5str[MD5_DIGEST_STRING_LENGTH];
+	MD5_CTX readctx, writectx;
+
+	MD5Init(&readctx);
+	MD5Init(&writectx);
 
 	fds[0].fd = fd;
 	fds[0].events = event;
@@ -107,6 +113,7 @@ rwio(int fd, int event, size_t maxlen)
 				buf[rv] = '\0';
 				printf("%d >>> %s\n", fds[0].fd, buf);
 				readlen += rv;
+				MD5Update(&readctx, buf, rv);
 			}
 		}
 		if (fds[0].revents & POLLOUT) {
@@ -123,11 +130,14 @@ rwio(int fd, int event, size_t maxlen)
 				out = ((out+rv-'0') % (1+'9'-'0')) + '0';
 				writelen += rv;
 				n -= rv;
+				MD5Update(&writectx, buf, rv);
 			}
 		}
 	}
 	printf("%d READLEN: %zu\n", fd, readlen);
+	printf("%d READMD5: %s\n", fd, MD5End(&readctx, md5str));
 	printf("%d WRITELEN: %zu\n", fd, writelen);
+	printf("%d WRITEMD5: %s\n", fd, MD5End(&writectx, md5str));
 }
 
 void
