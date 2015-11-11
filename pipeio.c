@@ -71,30 +71,31 @@ main(int argc, char *argv[])
 void
 reader(int fd)
 {
-	rwio(fd, POLLIN, 0);
+	rwio(fd, POLLIN|POLLOUT, 900);
 }
 
 void
 writer(int fd)
 {
-	rwio(fd, POLLOUT, 1000);
+	rwio(fd, POLLIN|POLLOUT, 1000);
 }
 
 void
-rwio(int fd, int event, size_t maxlen)
+rwio(int fd, int events, size_t writemax)
 {
 	struct pollfd fds[1];
 	size_t n = 0, readlen = 0, writelen = 0;
 	char out = '0', md5str[MD5_DIGEST_STRING_LENGTH];
+	int eof = 0;
 	MD5_CTX readctx, writectx;
 
 	MD5Init(&readctx);
 	MD5Init(&writectx);
 
 	fds[0].fd = fd;
-	fds[0].events = event;
+	fds[0].events = events;
 
-	while (!maxlen || (readlen < maxlen && writelen < maxlen)) {
+	while ((!writemax && !eof) || (writelen < writemax || !eof)) {
 		char buf[BUFSIZE + 1];
 		ssize_t rv;
 
@@ -104,11 +105,17 @@ rwio(int fd, int event, size_t maxlen)
 			errx(1, "POLLNVAL %d", fds[0].fd);
 		if (fds[0].revents & POLLERR)
 			errx(1, "POLLERR %d", fds[0].fd);
-		if (fds[0].revents & POLLHUP)
-			break;
+		if (fds[0].revents & POLLHUP) {
+			fds[0].events &= POLLIN;
+			eof = 1;
+		}
 		if (fds[0].revents & POLLIN) {
 			if ((rv = read(fds[0].fd, buf, READSIZE)) == -1)
 				err(1, "read");
+			if (rv > 0 && buf[rv - 1] == '\0') {
+				eof = 1;
+				rv--;
+			}
 			if (rv > 0) {
 				buf[rv] = '\0';
 				printf("%d >>> %s\n", fds[0].fd, buf);
@@ -119,11 +126,19 @@ rwio(int fd, int event, size_t maxlen)
 		if (fds[0].revents & POLLOUT) {
 			if (n == 0)
 				n = random() % WRITESIZE;
-			if (maxlen && n + writelen > maxlen)
-				n = maxlen - writelen;
-			genchar(buf, n, out, '0', '9');
-			if ((rv = write(fds[0].fd, buf, n)) == -1)
-				err(1, "read");
+			if (writemax && n + writelen > writemax)
+				n = writemax - writelen;
+			if (writemax && writelen == writemax) {
+				if (write(fds[0].fd, "", 1) == -1)
+					err(1, "write eof");
+				fds[0].events &= POLLOUT;
+			}
+			if (n > 0) {
+				genchar(buf, n, out, '0', '9');
+				if ((rv = write(fds[0].fd, buf, n)) == -1)
+					err(1, "write");
+			} else
+				rv = 0;
 			if (rv > 0) {
 				buf[rv] = '\0';
 				printf("%d <<< %s\n", fds[0].fd, buf);
