@@ -25,6 +25,7 @@
 #include <limits.h>
 #include <md5.h>
 #include <poll.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -60,6 +61,9 @@ main(int argc, char *argv[])
 	const char *errstr, *mode;
 	char *dev, ptyname[2][16];
 	struct sockaddr_un sun;
+
+	if (setvbuf(stdout, NULL, _IOLBF, 0) != 0)
+		err(1, "setvbuf");
 
 	seed = arc4random();
 	while ((ch = getopt(argc, argv, "s:")) != -1) {
@@ -120,14 +124,28 @@ main(int argc, char *argv[])
 	if (strcmp(mode, "pty") == 0) {
 		if (openpty(&mfd[0], &fd[0], ptyname[0], NULL, NULL) == -1)
 			err(1, "openpty");
+		printf("%d PTY: %s\n", fd[0], ptyname[0]);
 		if (openpty(&mfd[1], &fd[1], ptyname[1], NULL, NULL) == -1)
 			err(1, "openpty");
+		printf("%d PTY: %s\n", fd[1], ptyname[1]);
+
+		if (fflush(stdout) != 0)
+			err(1, "fflush");
+		if ((pid[2] = fork()) == -1)
+			err(1, "fork");
+		if (pid[2] == 0) {
+			close(fd[0]);
+			close(fd[1]);
+			xchange(mfd);
+			fflush(stdout);
+			_exit(0);
+		}
+		close(mfd[0]);
+		close(mfd[1]);
 	}
 
 	if (fflush(stdout) != 0)
 		err(1, "fflush");
-	if (setvbuf(stdout, NULL, _IOLBF, 0) != 0)
-		err(1, "setvbuf");
 	if ((pid[0] = fork()) == -1)
 		err(1, "fork");
 	if (pid[0] == 0) {
@@ -160,16 +178,6 @@ main(int argc, char *argv[])
 	close(fd[0]);
 	close(fd[1]);
 
-	if (strcmp(mode, "pty") == 0) {
-		if ((pid[2] = fork()) == -1)
-			err(1, "fork");
-		if (pid[2] == 0) {
-			xchange(mfd);
-			fflush(stdout);
-			_exit(0);
-		}
-	}
-
 	while (pid[0] != 0 || pid[1] != 0) {
 		int status;
 		pid_t wpid;
@@ -187,6 +195,8 @@ main(int argc, char *argv[])
 				pid[1] = 0;
 		}
 	}
+	if (strcmp(mode, "pty") == 0)
+		kill(pid[2], SIGTERM);
 
 	return (ret);
 }
@@ -304,7 +314,7 @@ xchange(int fd[])
 	fds[1].fd = fd[1];
 	fds[1].events = POLLIN;
 
-	while (1) {
+	while (fds[0].fd != -1 || fds[1].fd != -1) {
 		ssize_t rv;
 
 		if (poll(fds, 2, INFTIM) == -1)
@@ -319,16 +329,10 @@ xchange(int fd[])
 		if (fds[1].revents & POLLERR)
 			errx(1, "POLLERR %d", fds[1].fd);
 
-		if (fds[0].revents & POLLHUP) {
+		if (fds[0].revents & POLLHUP)
 			fds[0].fd = -1;
-			if (fds[1].fd == -1)
-				break;
-		}
-		if (fds[1].revents & POLLHUP) {
+		if (fds[1].revents & POLLHUP)
 			fds[1].fd = -1;
-			if (fds[0].fd == -1)
-				break;
-		}
 
 		if (fds[0].revents & POLLIN) {
 			if ((rv = read(fds[0].fd, buf[0], BUFSIZE)) == -1)
@@ -339,6 +343,7 @@ xchange(int fd[])
 				fds[0].events &= ~POLLIN;
 				fds[1].events |= POLLOUT;
 			}
+			printf("%d READLEN: %zu\n", fd[0], readlen[0]);
 		}
 		if (fds[1].revents & POLLOUT) {
 			if ((rv = write(fds[1].fd, buf[0], n[0])) == -1)
@@ -353,6 +358,7 @@ xchange(int fd[])
 					fds[1].events &= ~POLLOUT;
 				}
 			}
+			printf("%d WRITELEN: %zu\n", fd[1], writelen[1]);
 		}
 
 		if (fds[1].revents & POLLIN) {
@@ -364,6 +370,7 @@ xchange(int fd[])
 				fds[1].events &= ~POLLIN;
 				fds[0].events |= POLLOUT;
 			}
+			printf("%d READLEN: %zu\n", fd[1], readlen[1]);
 		}
 		if (fds[0].revents & POLLOUT) {
 			if ((rv = write(fds[0].fd, buf[1], n[1])) == -1)
@@ -378,6 +385,7 @@ xchange(int fd[])
 					fds[0].events &= ~POLLOUT;
 				}
 			}
+			printf("%d WRITELEN: %zu\n", fd[0], writelen[0]);
 		}
 	}
 }
