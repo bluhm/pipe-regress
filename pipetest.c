@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -129,9 +130,18 @@ main(int argc, char *argv[])
 		if (openpty(&mfd[0], &fd[0], ptyname[0], &term, NULL) == -1)
 			err(1, "openpty");
 		printf("%d PTY: %s\n", fd[0], ptyname[0]);
+		ch = 1;
+		if (ioctl(mfd[0], TIOCEXT, &ch) == -1)
+			err(1, "ioctl TIOCEXT");
+		if (ioctl(mfd[0], TIOCREMOTE, &ch) == -1)
+			err(1, "ioctl TIOCREMOTE");
 		if (openpty(&mfd[1], &fd[1], ptyname[1], &term, NULL) == -1)
 			err(1, "openpty");
 		printf("%d PTY: %s\n", fd[1], ptyname[1]);
+		if (ioctl(mfd[1], TIOCEXT, &ch) == -1)
+			err(1, "ioctl TIOCEXT");
+		if (ioctl(mfd[1], TIOCREMOTE, &ch) == -1)
+			err(1, "ioctl TIOCREMOTE");
 
 		if (fflush(stdout) != 0)
 			err(1, "fflush");
