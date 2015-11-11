@@ -344,7 +344,6 @@ xchange(int fd[])
 				fds[0].events &= ~POLLIN;
 				fds[1].events |= POLLOUT;
 			}
-			printf("%d READLEN: %zu\n", fd[0], readlen[0]);
 		}
 		if (fds[1].revents & POLLOUT) {
 			if ((rv = write(fds[1].fd, buf[0], n[0])) == -1)
@@ -359,7 +358,6 @@ xchange(int fd[])
 					fds[1].events &= ~POLLOUT;
 				}
 			}
-			printf("%d WRITELEN: %zu\n", fd[1], writelen[1]);
 		}
 
 		if (fds[1].revents & POLLIN) {
@@ -371,7 +369,6 @@ xchange(int fd[])
 				fds[1].events &= ~POLLIN;
 				fds[0].events |= POLLOUT;
 			}
-			printf("%d READLEN: %zu\n", fd[1], readlen[1]);
 		}
 		if (fds[0].revents & POLLOUT) {
 			if ((rv = write(fds[0].fd, buf[1], n[1])) == -1)
@@ -386,7 +383,10 @@ xchange(int fd[])
 					fds[0].events &= ~POLLOUT;
 				}
 			}
-			printf("%d WRITELEN: %zu\n", fd[0], writelen[0]);
 		}
 	}
+	printf("%d READLEN: %zu\n", fd[0], readlen[0]);
+	printf("%d WRITELEN: %zu\n", fd[1], writelen[1]);
+	printf("%d READLEN: %zu\n", fd[1], readlen[1]);
+	printf("%d WRITELEN: %zu\n", fd[0], writelen[0]);
 }
