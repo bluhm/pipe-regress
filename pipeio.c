@@ -29,11 +29,16 @@ main(int argc, char *argv[])
 
 	srandom_deterministic(5);
 
+	if (setvbuf(stdout, NULL, _IOLBF, 0) != 0)
+		err(1, "setvbuf");
+	if (fflush(stdout) != 0)
+		err(1, "fflush");
 	if ((pid[0] = fork()) == -1)
 		err(1, "fork");
 	if (pid[0] == 0) {
 		close(fd[1]);
 		reader(fd[0]);
+		fflush(stdout);
 		_exit(0);
 	}
 
@@ -42,6 +47,7 @@ main(int argc, char *argv[])
 	if (pid[1] == 0) {
 		close(fd[0]);
 		writer(fd[1]);
+		fflush(stdout);
 		_exit(0);
 	}
 	close(fd[0]);
