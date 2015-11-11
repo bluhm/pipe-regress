@@ -15,7 +15,7 @@
 
 void reader(int);
 void writer(int);
-void rwio(int, int, size_t);
+void rwio(int, int, size_t, char, char);
 void genchar(char *, size_t, char, char, char);
 
 int
@@ -71,21 +71,21 @@ main(int argc, char *argv[])
 void
 reader(int fd)
 {
-	rwio(fd, POLLIN|POLLOUT, 900);
+	rwio(fd, POLLIN|POLLOUT, 900, 'A', 'Z');
 }
 
 void
 writer(int fd)
 {
-	rwio(fd, POLLIN|POLLOUT, 1000);
+	rwio(fd, POLLIN|POLLOUT, 1000, '0', '9');
 }
 
 void
-rwio(int fd, int events, size_t writemax)
+rwio(int fd, int events, size_t writemax, char writebegin, char writeend)
 {
 	struct pollfd fds[1];
 	size_t n = 0, readlen = 0, writelen = 0;
-	char out = '0', md5str[MD5_DIGEST_STRING_LENGTH];
+	char out = writebegin, md5str[MD5_DIGEST_STRING_LENGTH];
 	int eof = 0;
 	MD5_CTX readctx, writectx;
 
@@ -134,7 +134,7 @@ rwio(int fd, int events, size_t writemax)
 				fds[0].events &= POLLOUT;
 			}
 			if (n > 0) {
-				genchar(buf, n, out, '0', '9');
+				genchar(buf, n, out, writebegin, writeend);
 				if ((rv = write(fds[0].fd, buf, n)) == -1)
 					err(1, "write");
 			} else
@@ -142,7 +142,7 @@ rwio(int fd, int events, size_t writemax)
 			if (rv > 0) {
 				buf[rv] = '\0';
 				printf("%d <<< %s\n", fds[0].fd, buf);
-				out = ((out+rv-'0') % (1+'9'-'0')) + '0';
+				out = buf[rv - 1] + 1;
 				writelen += rv;
 				n -= rv;
 				MD5Update(&writectx, buf, rv);
@@ -161,8 +161,8 @@ genchar(char *buf, size_t n, char c, char begin, char end)
 	char *p;
 
 	for (p = buf; p < buf + n; p++) {
-		*p = c;
-		if (c++ >= end)
+		if (c > end)
 			c = begin;
+		*p = c++;
 	}
 }
