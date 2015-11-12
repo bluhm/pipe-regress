@@ -1,0 +1,16 @@
+Try several sort of pipes in the OpenBSD kernel and test wether
+they are suited for bidirectional throughput.  Two processes are
+forked, which read and write into the pipe simultanously.  They
+create checksums of the read and written data.  The Makefile checks
+that each checksum and length appears twice.
+
+At the moment these test cases have been implemented:
+- socketpair
+- pipe
+- fifo
+- unix
+- pty
+
+Fifo does not support bidrectional communication, so it is disabled.
+Pty creates two pseudo terminals, a third process exchanges all
+data between the master device file descriptors.
