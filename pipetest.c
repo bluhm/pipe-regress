@@ -48,7 +48,7 @@ void xchange(int[]);
 void __dead
 usage(void)
 {
-	fprintf(stderr, "%s: socketpair | pipe | fifo | unix | pty\n",
+	fprintf(stderr, "%s: socketpair | pipe | fifo | unix | pty | ptypair\n",
 	    getprogname());
 	exit(2);
 }
@@ -58,13 +58,14 @@ main(int argc, char *argv[])
 {
 	int ch, fd[2], ls, mfd[2], ret = 0;
 	pid_t pid[3] = {0, 0, 0};
-	const char *mode;
+	const char *mode, *progpath;
 	char *dev, ptyname[2][16];
 	struct sockaddr_un sun;
 
 	if (setvbuf(stdout, NULL, _IOLBF, 0) != 0)
 		err(1, "setvbuf");
 
+	progpath = argv[0];
 	while ((ch = getopt(argc, argv, "")) != -1) {
 		switch (ch) {
 		default:
@@ -147,6 +148,30 @@ main(int argc, char *argv[])
 		}
 		close(mfd[0]);
 		close(mfd[1]);
+	}
+	if (strcmp(mode, "ptypair") == 0) {
+		char *path, *file;
+		size_t size;
+
+		size = strlen(progpath) + sizeof("ptypair");
+		if ((path = malloc(size)) == NULL)
+			err(1, "malloc");
+		strlcpy(path, progpath, size);
+		if ((file = strrchr(path, '/')) == NULL) {
+			strlcpy(path, "ptypair", size);
+		} else {
+			file++;
+			strlcpy(file, "ptypair", size - (file - path));
+		}
+		
+		if (fflush(stdout) != 0)
+			err(1, "fflush");
+		if ((pid[2] = fork()) == -1)
+			err(1, "fork");
+		if (pid[2] == 0) {
+			execl(path, path, NULL);
+			err(1, "exec %s", path);
+		}
 	}
 
 	if (fflush(stdout) != 0)
