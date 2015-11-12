@@ -39,6 +39,8 @@
 #define WRITESIZE	64
 #define BUFSIZE		(READSIZE > WRITESIZE ? READSIZE : WRITESIZE)
 
+int qflag, vflag;
+
 void __dead usage(void);
 void reader(int);
 void writer(int);
@@ -49,7 +51,8 @@ void xchange(int[]);
 void __dead
 usage(void)
 {
-	fprintf(stderr, "%s: socketpair | pipe | fifo | unix | pty | ptypair\n",
+	fprintf(stderr,
+	    "%s: socketpair [-qv] | pipe | fifo | unix | pty | ptypair\n",
 	    getprogname());
 	exit(2);
 }
@@ -67,8 +70,14 @@ main(int argc, char *argv[])
 		err(1, "setvbuf");
 
 	progpath = argv[0];
-	while ((ch = getopt(argc, argv, "")) != -1) {
+	while ((ch = getopt(argc, argv, "qv")) != -1) {
 		switch (ch) {
+		case 'q':
+			qflag = 1;
+			break;
+		case 'v':
+			vflag = 1;
+			break;
 		default:
 			usage();
 		}
@@ -131,7 +140,8 @@ main(int argc, char *argv[])
 				err(1, "ioctl TIOCEXT");
 			if (ioctl(mfd[i], TIOCREMOTE, &ch) == -1)
 				err(1, "ioctl TIOCREMOTE");
-			printf("%d PTY %s\n", fd[i], ptyname[i]);
+			if (!qflag)
+				printf("%d PTY %s\n", fd[i], ptyname[i]);
 		}
 
 		if (fflush(stdout) != 0)
@@ -262,13 +272,15 @@ rwio(int fd, int events, size_t writemax, char writebegin, char writeend)
 			if ((rv = read(fds[0].fd, buf, READSIZE)) == -1)
 				err(1, "read");
 			if (rv > 0 && buf[rv - 1] == '\0') {
-				printf("%d READEOF\n", fds[0].fd);
+				if (vflag)
+					printf("%d READEOF\n", fds[0].fd);
 				fds[0].events &= ~POLLIN;
 				rv--;
 			}
 			if (rv > 0) {
 				buf[rv] = '\0';
-				printf("%d >>> %s\n", fds[0].fd, buf);
+				if (vflag)
+					printf("%d >>> %s\n", fds[0].fd, buf);
 				readlen += rv;
 				MD5Update(&readctx, buf, rv);
 			}
@@ -281,7 +293,8 @@ rwio(int fd, int events, size_t writemax, char writebegin, char writeend)
 			if (writemax && writelen == writemax) {
 				if (write(fds[0].fd, "", 1) == -1)
 					err(1, "write eof");
-				printf("%d WRITEEOF\n", fds[0].fd);
+				if (vflag)
+					printf("%d WRITEEOF\n", fds[0].fd);
 				fds[0].events &= ~POLLOUT;
 			}
 			if (n > 0) {
@@ -292,7 +305,8 @@ rwio(int fd, int events, size_t writemax, char writebegin, char writeend)
 				rv = 0;
 			if (rv > 0) {
 				buf[rv] = '\0';
-				printf("%d <<< %s\n", fds[0].fd, buf);
+				if (vflag)
+					printf("%d <<< %s\n", fds[0].fd, buf);
 				out = buf[rv - 1] + 1;
 				writelen += rv;
 				n -= rv;
@@ -300,10 +314,12 @@ rwio(int fd, int events, size_t writemax, char writebegin, char writeend)
 			}
 		}
 	}
-	printf("%d READLEN: %zu\n", fd, readlen);
-	printf("%d READMD5: %s\n", fd, MD5End(&readctx, md5str));
-	printf("%d WRITELEN: %zu\n", fd, writelen);
-	printf("%d WRITEMD5: %s\n", fd, MD5End(&writectx, md5str));
+	if (!qflag) {
+		printf("%d READLEN: %zu\n", fd, readlen);
+		printf("%d READMD5: %s\n", fd, MD5End(&readctx, md5str));
+		printf("%d WRITELEN: %zu\n", fd, writelen);
+		printf("%d WRITEMD5: %s\n", fd, MD5End(&writectx, md5str));
+	}
 }
 
 void
@@ -400,8 +416,10 @@ xchange(int fd[])
 			}
 		}
 	}
-	printf("%d READLEN: %zu\n", fd[0], readlen[0]);
-	printf("%d WRITELEN: %zu\n", fd[1], writelen[1]);
-	printf("%d READLEN: %zu\n", fd[1], readlen[1]);
-	printf("%d WRITELEN: %zu\n", fd[0], writelen[0]);
+	if (!qflag) {
+		printf("%d READLEN: %zu\n", fd[0], readlen[0]);
+		printf("%d WRITELEN: %zu\n", fd[1], writelen[1]);
+		printf("%d READLEN: %zu\n", fd[1], readlen[1]);
+		printf("%d WRITELEN: %zu\n", fd[0], writelen[0]);
+	}
 }
