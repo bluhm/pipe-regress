@@ -2,7 +2,7 @@ PROG =			pipetest
 LDADD =			-lutil
 DPADD =			${LIBUTIL}
 WARNINGS =		yes
-CLEANFILES +=		ptypair *.fifo *.sock *.log
+CLEANFILES +=		ptypair ptypair.o *.fifo *.sock *.log
 
 # XXX fifo is broken as it does not work correctly if used bidirectionaly
 
