@@ -15,6 +15,7 @@
  */
 
 #include <sys/ioctl.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -120,21 +121,17 @@ main(int argc, char *argv[])
 	if (strcmp(mode, "pty") == 0) {
 		struct termios term;
 
+		ch = 1;
 		memset(&term, 0, sizeof(term));
 		cfmakeraw(&term);
-		if (openpty(&mfd[0], &fd[0], ptyname[0], &term, NULL) == -1)
-			err(1, "openpty");
-		ch = 1;
-		if (ioctl(mfd[0], TIOCEXT, &ch) == -1)
-			err(1, "ioctl TIOCEXT");
-		if (ioctl(mfd[0], TIOCREMOTE, &ch) == -1)
-			err(1, "ioctl TIOCREMOTE");
-		if (openpty(&mfd[1], &fd[1], ptyname[1], &term, NULL) == -1)
-			err(1, "openpty");
-		if (ioctl(mfd[1], TIOCEXT, &ch) == -1)
-			err(1, "ioctl TIOCEXT");
-		if (ioctl(mfd[1], TIOCREMOTE, &ch) == -1)
-			err(1, "ioctl TIOCREMOTE");
+		for (i = 0; i < nitems(mfd); i++) {
+			if (openpty(&mfd[i], &fd[i], ptyname[i], &term, NULL) == -1)
+				err(1, "openpty");
+			if (ioctl(mfd[i], TIOCEXT, &ch) == -1)
+				err(1, "ioctl TIOCEXT");
+			if (ioctl(mfd[i], TIOCREMOTE, &ch) == -1)
+				err(1, "ioctl TIOCREMOTE");
+		}
 
 		if (fflush(stdout) != 0)
 			err(1, "fflush");
@@ -177,7 +174,7 @@ main(int argc, char *argv[])
 
 	if (fflush(stdout) != 0)
 		err(1, "fflush");
-	for (i = 0, j = 1; i < 2; i++, j--) {
+	for (i = 0, j = 1; i < nitems(fd); i++, j--) {
 		if ((pid[i] = fork()) == -1)
 			err(1, "fork");
 		if (pid[i] == 0) {
