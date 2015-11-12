@@ -61,6 +61,7 @@ main(int argc, char *argv[])
 	const char *mode, *progpath;
 	char *dev, ptyname[2][16];
 	struct sockaddr_un sun;
+	size_t i, j;
 
 	if (setvbuf(stdout, NULL, _IOLBF, 0) != 0)
 		err(1, "setvbuf");
@@ -176,30 +177,19 @@ main(int argc, char *argv[])
 
 	if (fflush(stdout) != 0)
 		err(1, "fflush");
-	if ((pid[0] = fork()) == -1)
-		err(1, "fork");
-	if (pid[0] == 0) {
-		if (strcmp(mode, "fifo") == 0) {
-			if ((fd[0] = open(dev, O_RDWR)) == -1)
-				err(1, "open");
-		} else
-			close(fd[1]);
-		reader(fd[0]);
-		fflush(stdout);
-		_exit(0);
-	}
-
-	if ((pid[1] = fork()) == -1)
-		err(1, "fork");
-	if (pid[1] == 0) {
-		if (strcmp(mode, "fifo") == 0) {
-			if ((fd[1] = open(dev, O_RDWR)) == -1)
-				err(1, "open");
-		} else
-			close(fd[0]);
-		writer(fd[1]);
-		fflush(stdout);
-		_exit(0);
+	for (i = 0, j = 1; i < 2; i++, j--) {
+		if ((pid[i] = fork()) == -1)
+			err(1, "fork");
+		if (pid[i] == 0) {
+			if (strcmp(mode, "fifo") == 0) {
+				if ((fd[i] = open(dev, O_RDWR)) == -1)
+					err(1, "open");
+			} else
+				close(fd[j]);
+			reader(fd[i]);
+			fflush(stdout);
+			_exit(0);
+		}
 	}
 	close(fd[0]);
 	close(fd[1]);
