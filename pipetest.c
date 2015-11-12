@@ -199,7 +199,10 @@ main(int argc, char *argv[])
 					err(1, "open %s", ptyname[i]);
 			} else
 				close(fd[j]);
-			reader(fd[i]);
+			if (i == 0)
+				reader(fd[i]);
+			else
+				writer(fd[i]);
 			fflush(stdout);
 			_exit(0);
 		}
