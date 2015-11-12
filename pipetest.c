@@ -63,7 +63,7 @@ main(int argc, char *argv[])
 	int ch, fd[2], ret = 0;
 	pid_t pid[3] = {0, 0, 0};
 	const char *mode, *progpath;
-	char *dev, ptyname[2][16] = {"", ""};
+	char *dev, ptyname[2][16] = {"/dev/ttypd", "/dev/ttype"};
 	size_t i, j;
 
 	if (setvbuf(stdout, NULL, _IOLBF, 0) != 0)
@@ -177,7 +177,7 @@ main(int argc, char *argv[])
 		if ((pid[2] = fork()) == -1)
 			err(1, "fork");
 		if (pid[2] == 0) {
-			execl(path, path, NULL);
+			execl(path, path, "-v", NULL);
 			err(1, "exec %s", path);
 		}
 		free(path);
@@ -194,6 +194,7 @@ main(int argc, char *argv[])
 				if ((fd[i] = open(dev, O_RDWR)) == -1)
 					err(1, "open %s", dev);
 			} else if (strcmp(mode, "ptypair") == 0) {
+				sleep(1);
 				if ((fd[i] = open(ptyname[i], O_RDWR)) == -1)
 					err(1, "open %s", ptyname[i]);
 			} else

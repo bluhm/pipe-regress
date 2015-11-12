@@ -52,8 +52,14 @@ main(int argc, char *argv[])
 	if (setvbuf(stdout, NULL, _IOLBF, 0) != 0)
 		err(1, "setvbuf");
 
-	while ((ch = getopt(argc, argv, "")) != -1) {
+	while ((ch = getopt(argc, argv, "qv")) != -1) {
 		switch (ch) {
+		case 'q':
+			qflag = 1;
+			break;
+		case 'v':
+			vflag = 1;
+			break;
 		default:
 			usage();
 		}
