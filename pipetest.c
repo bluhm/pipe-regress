@@ -57,11 +57,10 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	int ch, fd[2], ls, mfd[2], ret = 0;
+	int ch, fd[2], ret = 0;
 	pid_t pid[3] = {0, 0, 0};
 	const char *mode, *progpath;
 	char *dev, ptyname[2][16] = {"", ""};
-	struct sockaddr_un sun;
 	size_t i, j;
 
 	if (setvbuf(stdout, NULL, _IOLBF, 0) != 0)
@@ -93,6 +92,9 @@ main(int argc, char *argv[])
 		if (mkfifo(dev, 0600) == -1)
 			err(1, "mkfifo");
 	} else if (strcmp(mode, "unix") == 0) {
+		struct sockaddr_un sun;
+		int ls;
+
 		if (asprintf(&dev, "%s.sock", getprogname()) == -1)
 			err(1, "asprintf");
 		unlink(dev);
@@ -116,6 +118,7 @@ main(int argc, char *argv[])
 			err(1, "accept");
 	} else if (strcmp(mode, "pty") == 0) {
 		struct termios term;
+		int mfd[2];
 
 		ch = 1;
 		memset(&term, 0, sizeof(term));
@@ -165,6 +168,7 @@ main(int argc, char *argv[])
 			execl(path, path, NULL);
 			err(1, "exec %s", path);
 		}
+		free(path);
 	} else
 		usage();
 
