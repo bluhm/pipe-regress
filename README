@@ -5,11 +5,11 @@ create checksums of the read and written data.  The Makefile checks
 that each checksum and length appears twice.
 
 At the moment these test cases have been implemented:
-- socketpair
-- pipe
-- fifo
-- unix
-- pty
+- socketpair with stream socketpair(2)
+- pipe created with pipe(2)
+- fifo named pipe with mkfifo(2)
+- unix connects two local domain stream sockets
+- pty creates two pseudo-tty with openpty(3)
 
 Fifo does not support bidrectional communication, so it is disabled.
 Pty creates two pseudo terminals, a third process exchanges all
