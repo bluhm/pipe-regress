@@ -60,7 +60,7 @@ main(int argc, char *argv[])
 	int ch, fd[2], ls, mfd[2], ret = 0;
 	pid_t pid[3] = {0, 0, 0};
 	const char *mode, *progpath;
-	char *dev, ptyname[2][16];
+	char *dev, ptyname[2][16] = {"", ""};
 	struct sockaddr_un sun;
 	size_t i, j;
 
@@ -176,7 +176,10 @@ main(int argc, char *argv[])
 		if (pid[i] == 0) {
 			if (strcmp(mode, "fifo") == 0) {
 				if ((fd[i] = open(dev, O_RDWR)) == -1)
-					err(1, "open");
+					err(1, "open %s", dev);
+			} else if (strcmp(mode, "ptypair") == 0) {
+				if ((fd[i] = open(ptyname[i], O_RDWR)) == -1)
+					err(1, "open %s", ptyname[i]);
 			} else
 				close(fd[j]);
 			reader(fd[i]);
