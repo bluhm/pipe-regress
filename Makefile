@@ -4,7 +4,7 @@ DPADD =			${LIBUTIL}
 WARNINGS =		yes
 CLEANFILES +=		*.fifo *.sock *.log
 
-# XXX fifo is broken as it is not bidirectional
+# XXX fifo is broken as it does not work correctly if used bidirectionaly
 
 .for t in socketpair pipe unix pty
 REGRESS_TARGETS +=	run-regress-$t
