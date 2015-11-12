@@ -83,19 +83,16 @@ main(int argc, char *argv[])
 	if (strcmp(mode, "socketpair") == 0) {
 		if (socketpair(PF_LOCAL, SOCK_STREAM, 0, fd) == -1)
 			err(1, "socketpair");
-	}
-	if (strcmp(mode, "pipe") == 0) {
+	} else if (strcmp(mode, "pipe") == 0) {
 		if (pipe(fd) == -1)
 			err(1, "pipe");
-	}
-	if (strcmp(mode, "fifo") == 0) {
+	} else if (strcmp(mode, "fifo") == 0) {
 		if (asprintf(&dev, "%s.fifo", getprogname()) == -1)
 			err(1, "asprintf");
 		unlink(dev);
 		if (mkfifo(dev, 0600) == -1)
 			err(1, "mkfifo");
-	}
-	if (strcmp(mode, "unix") == 0) {
+	} else if (strcmp(mode, "unix") == 0) {
 		if (asprintf(&dev, "%s.sock", getprogname()) == -1)
 			err(1, "asprintf");
 		unlink(dev);
@@ -117,8 +114,7 @@ main(int argc, char *argv[])
 			err(1, "connect");
 		if ((fd[0] = accept(ls, NULL, 0)) == -1)
 			err(1, "accept");
-	}
-	if (strcmp(mode, "pty") == 0) {
+	} else if (strcmp(mode, "pty") == 0) {
 		struct termios term;
 
 		ch = 1;
@@ -146,8 +142,7 @@ main(int argc, char *argv[])
 		}
 		close(mfd[0]);
 		close(mfd[1]);
-	}
-	if (strcmp(mode, "ptypair") == 0) {
+	} else if (strcmp(mode, "ptypair") == 0) {
 		char *path, *file;
 		size_t size;
 
@@ -170,7 +165,8 @@ main(int argc, char *argv[])
 			execl(path, path, NULL);
 			err(1, "exec %s", path);
 		}
-	}
+	} else
+		usage();
 
 	if (fflush(stdout) != 0)
 		err(1, "fflush");

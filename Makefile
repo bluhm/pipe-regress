@@ -9,7 +9,7 @@ CLEANFILES +=		ptypair *.fifo *.sock *.log
 ptypair: ${LIBCRT0} ptypair.o ${LIBC} ${CRTBEGIN} ${CRTEND} ${DPADD}
 	${CC} ${LDFLAGS} ${LDSTATIC} -o ${.TARGET} ptypair.o ${LDADD}
 
-.for t in socketpair pipe unix pty
+.for t in socketpair pipe unix pty ptypair
 REGRESS_TARGETS +=	run-regress-$t
 run-regress-$t: ${PROG} ptypair
 	@echo '\n======== $@ ========'
