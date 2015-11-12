@@ -29,12 +29,14 @@
 
 #define BUFSIZE		4096
 
+int qflag, vflag;
+
 void __dead usage(void);
 
 void __dead
 usage(void)
 {
-	fprintf(stderr, "%s\n", getprogname());
+	fprintf(stderr, "%s [-qv]\n", getprogname());
 	exit(2);
 }
 
@@ -71,7 +73,8 @@ main(int argc, char *argv[])
 			err(1, "ioctl TIOCEXT");
 		if (ioctl(mfd[i], TIOCREMOTE, &ch) == -1)
 			err(1, "ioctl TIOCREMOTE");
-		printf("%d MPTY %s\n", mfd[i], ptyname[i]);
+		if (!qflag)
+			printf("%d MPTY %s\n", mfd[i], ptyname[i]);
 	}
 
 	fds[0].fd = mfd[0];
@@ -105,21 +108,29 @@ main(int argc, char *argv[])
 				    == -1)
 					err(1, "read %d", fds[i].fd);
 				if (rv > 0) {
-					strvisx(str, buf[i], rv, VIS_NL);
-					printf("%d >>> %s\n", fds[i].fd, str);
+					if (vflag) {
+						strvisx(str, buf[i], rv,
+						    VIS_NL);
+						printf("%d >>> %s\n",
+						    fds[i].fd, str);
+					}
 					readlen[i] += rv;
 					n[i] = rv;
 					fds[i].events &= ~POLLIN;
 					fds[j].events |= POLLOUT;
-				} else
+				} else if (vflag)
 					printf("%d >>> EOF", fds[i].fd);
 			}
 			if (fds[j].revents & POLLOUT) {
 				if ((rv = write(fds[j].fd, buf[i], n[i])) == -1)
 					err(1, "write");
 				if (rv > 0) {
-					strvisx(str, buf[i], rv, VIS_NL);
-					printf("%d <<< %s\n", fds[j].fd, str);
+					if (vflag) {
+						strvisx(str, buf[i], rv,
+						    VIS_NL);
+						printf("%d <<< %s\n",
+						    fds[j].fd, str);
+					}
 					writelen[j] += rv;
 					n[i] -= rv;
 					if (n[i] > 0) {
@@ -129,7 +140,7 @@ main(int argc, char *argv[])
 						fds[i].events |= POLLIN;
 						fds[j].events &= ~POLLOUT;
 					}
-				} else
+				} else if (vflag)
 					printf("%d <<< EOF", fds[j].fd);
 			}
 		}
@@ -142,9 +153,11 @@ main(int argc, char *argv[])
 	}
 
 	/* log statistics */
-	for (i = 0, j = 1; i < nitems(mfd); i++, j--) {
-		printf("%d READLEN: %zu\n", fd[i], readlen[i]);
-		printf("%d WRITELEN: %zu\n", fd[i], writelen[i]);
+	if (!qflag) {
+		for (i = 0, j = 1; i < nitems(mfd); i++, j--) {
+			printf("%d READLEN: %zu\n", fd[i], readlen[i]);
+			printf("%d WRITELEN: %zu\n", fd[i], writelen[i]);
+		}
 	}
 
 	return (0);
