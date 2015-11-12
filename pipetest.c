@@ -124,12 +124,14 @@ main(int argc, char *argv[])
 		memset(&term, 0, sizeof(term));
 		cfmakeraw(&term);
 		for (i = 0; i < nitems(mfd); i++) {
-			if (openpty(&mfd[i], &fd[i], ptyname[i], &term, NULL) == -1)
+			if (openpty(&mfd[i], &fd[i], ptyname[i], &term, NULL)
+			    == -1)
 				err(1, "openpty");
 			if (ioctl(mfd[i], TIOCEXT, &ch) == -1)
 				err(1, "ioctl TIOCEXT");
 			if (ioctl(mfd[i], TIOCREMOTE, &ch) == -1)
 				err(1, "ioctl TIOCREMOTE");
+			printf("%d PTY %s\n", fd[i], ptyname[i]);
 		}
 
 		if (fflush(stdout) != 0)

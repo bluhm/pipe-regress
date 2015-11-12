@@ -71,6 +71,7 @@ main(int argc, char *argv[])
 			err(1, "ioctl TIOCEXT");
 		if (ioctl(mfd[i], TIOCREMOTE, &ch) == -1)
 			err(1, "ioctl TIOCREMOTE");
+		printf("%d MPTY %s\n", mfd[i], ptyname[i]);
 	}
 
 	fds[0].fd = mfd[0];
