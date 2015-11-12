@@ -171,7 +171,7 @@ main(int argc, char *argv[])
 			file++;
 			strlcpy(file, "ptypair", size - (file - path));
 		}
-		
+
 		if (fflush(stdout) != 0)
 			err(1, "fflush");
 		if ((pid[2] = fork()) == -1)
