@@ -107,6 +107,10 @@ main(int argc, char *argv[])
 				fds[i].fd = -1;
 		}
 
+		/* anything from stdin terminates the program */
+		if (fds[2].revents & POLLIN)
+			fds[2].fd = -1;
+
 		/* copy bidirectional between master pseudo terminals */
 		for (i = 0, j = 1; i < nitems(mfd); i++, j--) {
 			if (fds[i].revents & POLLIN) {
@@ -149,12 +153,6 @@ main(int argc, char *argv[])
 				} else if (vflag)
 					printf("%d <<< EOF", fds[j].fd);
 			}
-		}
-
-		/* discard everything from stdin */
-		if (fds[2].revents & POLLIN) {
-			if (read(fds[2].fd, str, BUFSIZE) == -1)
-				err(1, "read stdin");
 		}
 	}
 
