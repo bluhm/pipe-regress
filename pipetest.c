@@ -452,10 +452,4 @@ xchange(int fd[])
 			}
 		}
 	}
-	if (!qflag) {
-		printf("%d READLEN: %zu\n", fd[0], readlen[0]);
-		printf("%d WRITELEN: %zu\n", fd[1], writelen[1]);
-		printf("%d READLEN: %zu\n", fd[1], readlen[1]);
-		printf("%d WRITELEN: %zu\n", fd[0], writelen[0]);
-	}
 }
