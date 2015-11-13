@@ -161,6 +161,7 @@ main(int argc, char *argv[])
 		char *path, *file, *line;
 		size_t len;
 		FILE *lf;
+		int lfd;
 
 		len = strlen(progpath) + sizeof("ptypair");
 		if ((path = malloc(len)) == NULL)
@@ -173,18 +174,25 @@ main(int argc, char *argv[])
 			strlcpy(file, "ptypair", len - (file - path));
 		}
 
+		if ((lfd = open("ptymaster.log",
+		    O_WRONLY|O_APPEND|O_CREAT|O_TRUNC|O_CLOEXEC, 0666)) == -1)
+			err(1, "open ptymaster.log");
+
 		if (fflush(stdout) != 0)
 			err(1, "fflush");
 		if ((pid[2] = fork()) == -1)
 			err(1, "fork");
 		if (pid[2] == 0) {
+			if (dup2(lfd, STDOUT_FILENO) == -1)
+				err(1, "dup2");
 			execl(path, path, "-v", NULL);
 			err(1, "exec %s", path);
 		}
+		close(lfd);
 		free(path);
 
-		if ((lf = fopen("ptypair.log", "r")) == NULL)
-			err(1, "fopen ptypair.log");
+		if ((lf = fopen("ptymaster.log", "r")) == NULL)
+			err(1, "fopen ptymaster.log");
 		do {
 			rewind(lf);
 			i = 0;

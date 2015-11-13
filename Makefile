@@ -14,7 +14,8 @@ REGRESS_TARGETS +=	run-regress-$t
 run-regress-$t: ${PROG} ptypair
 	@echo '\n======== $@ ========'
 	./pipetest $t >$t.log
-	if sed -n 's/.*: //p' $t.log | sort | uniq -u | grep .; then false; fi
+	if sed -n 's/.*[^T][^Y]: //p' $t.log | sort | uniq -u | grep .; \
+	    then false; fi
 	grep -q 'READMD5: fffdae56a0bd6978f990da15c0c53825' $t.log
 	grep -q 'WRITEMD5: fffdae56a0bd6978f990da15c0c53825' $t.log
 	grep -q 'READMD5: 427008b3fe192f663d665f56cd75716c' $t.log
