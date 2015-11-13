@@ -63,7 +63,7 @@ main(int argc, char *argv[])
 	int ch, fd[2], ret = 0;
 	pid_t pid[3] = {0, 0, 0};
 	const char *mode, *progpath;
-	char *dev, ptyname[2][16] = {"/dev/ttypd", "/dev/ttype"};
+	char *dev, ptyname[2][16] = {"", ""};
 	size_t i, j;
 
 	if (setvbuf(stdout, NULL, _IOLBF, 0) != 0)
@@ -158,18 +158,19 @@ main(int argc, char *argv[])
 		close(mfd[0]);
 		close(mfd[1]);
 	} else if (strcmp(mode, "ptypair") == 0) {
-		char *path, *file;
-		size_t size;
+		char *path, *file, *line;
+		size_t len;
+		FILE *lf;
 
-		size = strlen(progpath) + sizeof("ptypair");
-		if ((path = malloc(size)) == NULL)
+		len = strlen(progpath) + sizeof("ptypair");
+		if ((path = malloc(len)) == NULL)
 			err(1, "malloc");
-		strlcpy(path, progpath, size);
+		strlcpy(path, progpath, len);
 		if ((file = strrchr(path, '/')) == NULL) {
-			strlcpy(path, "ptypair", size);
+			strlcpy(path, "ptypair", len);
 		} else {
 			file++;
-			strlcpy(file, "ptypair", size - (file - path));
+			strlcpy(file, "ptypair", len - (file - path));
 		}
 
 		if (fflush(stdout) != 0)
@@ -181,6 +182,27 @@ main(int argc, char *argv[])
 			err(1, "exec %s", path);
 		}
 		free(path);
+
+		if ((lf = fopen("ptypair.log", "r")) == NULL)
+			err(1, "fopen ptypair.log");
+		do {
+			rewind(lf);
+			i = 0;
+			line = NULL;
+			while ((line = fgetln(lf, &len)) != NULL) {
+				if (line[len - 1] != '\n')
+					break;
+				line[len - 1] = 0;
+				if ((dev = strstr(line, " PTY: ")) == NULL)
+					continue;
+				strlcpy(ptyname[i], dev+6, sizeof(ptyname[i]));
+				if (++i >= nitems(ptyname))
+					break;
+			}
+			if (ferror(lf) != 0)
+				err(1, "getln");
+			sleep(0);
+		} while (ptyname[0][0] == '\0' || ptyname[1][0] == '\0');
 	} else
 		usage();
 
@@ -194,9 +216,11 @@ main(int argc, char *argv[])
 				if ((fd[i] = open(dev, O_RDWR)) == -1)
 					err(1, "open %s", dev);
 			} else if (strcmp(mode, "ptypair") == 0) {
-				sleep(1);
 				if ((fd[i] = open(ptyname[i], O_RDWR)) == -1)
 					err(1, "open %s", ptyname[i]);
+				if (!qflag)
+					printf("%d PTY: %s\n",
+					    fd[i], ptyname[i]);
 			} else
 				close(fd[j]);
 			if (i == 0)

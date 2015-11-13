@@ -80,7 +80,7 @@ main(int argc, char *argv[])
 		if (ioctl(mfd[i], TIOCREMOTE, &ch) == -1)
 			err(1, "ioctl TIOCREMOTE");
 		if (!qflag)
-			printf("%d MPTY %s\n", mfd[i], ptyname[i]);
+			printf("%d PTY: %s\n", mfd[i], ptyname[i]);
 	}
 
 	fds[0].fd = mfd[0];
