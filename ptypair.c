@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <sys/cdefs.h>
 #include <sys/ioctl.h>
 #include <sys/param.h>
 
@@ -31,9 +32,9 @@
 
 int qflag, vflag;
 
-void __dead usage(void);
+__dead void usage(void);
 
-void __dead
+__dead void
 usage(void)
 {
 	fprintf(stderr, "%s [-qv]\n", getprogname());
