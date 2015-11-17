@@ -160,8 +160,8 @@ main(int argc, char *argv[])
 	/* log statistics */
 	if (!qflag) {
 		for (i = 0, j = 1; i < nitems(mfd); i++, j--) {
-			printf("%d READLEN: %zu\n", fd[i], readlen[i]);
-			printf("%d WRITELEN: %zu\n", fd[i], writelen[i]);
+			printf("%d READLEN: %zu\n", mfd[i], readlen[i]);
+			printf("%d WRITELEN: %zu\n", mfd[i], writelen[i]);
 		}
 	}
 
