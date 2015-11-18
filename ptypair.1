@@ -28,14 +28,25 @@ The
 .Nm
 utility creates two pseudo terminal devices.
 All data is copied bidirectionally between them.
+The program terminates if standard input is closed or if both ptys
+are closed.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl q
+Quiet mode, do not print pty name and number of transferred bytes.
+.It Fl v
+Verbose mode, print every chunk of data read from or written to the
+master pty.
+.El
 .Sh FILES
 .Pa /dev/ttyp?
 pseudo terminal device
 .Sh EXIT STATUS
 .Ex -std
 .Sh DIAGNOSTICS
-The name of both pseudo terminals is written to stdout prefixed
-with
+Diagnostic messages are written to standard output.
+The name of both pseudo terminals is prefixed with
 .Li PTY: .
 Data read from a master pty is prefixed with
 .Li >>>
